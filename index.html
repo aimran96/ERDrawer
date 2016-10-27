@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>ER DRAWER</title>
+		<link rel="stylesheet" href="style.css" type="text/css"/>
+	</head>
+	<body>
+		<a href="https://github.com/admin96/ERDrawer"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/365986a132ccd6a44c23a9169022c0b5c890c387/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f7265645f6161303030302e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png"></a>
+		<div class="dropdown">
+		  <button class="dropbtn">File</button>
+		  <div class="dropdown-content">
+			<a onclick="newFile()">New</a>
+			<a onclick="display('openFileForm')">Open</a>
+			<!-- <a href="#">Save</a> -->
+			<a onclick="exportSvg()">Export</a>
+			<a onclick="display('propertiesForm')">Properties</a>
+		  </div>
+		</div>
+		
+		<div class="dropdown">
+		  <button class="dropbtn">Add</button>
+		  <div class="dropdown-content">
+			<a onclick="createEntity()">Entity</a>
+			<a onclick="createRelation()">Relation</a>
+		  </div>
+		</div>
+		
+		<div class="dropdown">
+		  <button class="dropbtn">Edit</button>
+		  <div class="dropdown-content">
+			<a onclick="editEntities()">Entities</a>
+			<!-- <a onclick="">Relations</a> -->
+		  </div>
+		</div>
+		
+		<!--
+		<div class="dropdown">
+		  <a onclick="console.log('click')"><button class="dropbtn" style="cursor: help ">Help</button></a>
+		</div>
+		-->
+		
+		<div id="entityForm" class="form">
+			<h4>Create Entity</h4>
+			<label>Name: <input type="text" id="entityName"/></label>
+			<input type="button" value="submit" onclick="submitEntity()"/>
+			<input type="button" value="cancel" onclick="document.getElementById('entityForm').style.display = 'none'"/>
+		</div>
+		
+		<div id="relationForm" class="form">
+			<label>First Cardinality: 
+				<select id="point1">
+					<option value="one">One</option>
+					<option value="many">Many</option>
+					<option value="onlyone">Only one</option>
+					<option value="zerorone">Zero or one</option>
+					<option value="oneormany">One or many</option>
+					<option value="zeroormany">Zero or many</option>
+				</select>
+			</label>
+			<label>Second Cardinality: 
+				<select id="point2">
+					<option value="one">One</option>
+					<option value="many">Many</option>
+					<option value="onlyone">Only one</option>
+					<option value="zerorone">Zero or one</option>
+					<option value="oneormany">One or many</option>
+					<option value="zeroormany">Zero or many</option>
+				</select>
+			</label>
+			<input type="button" value="submit" onclick="submitRelation()"/>
+			<input type="button" value="cancel" onclick="document.getElementById('relationForm').style.display = 'none'"/>
+		</div>
+		
+		<div id="propertiesForm" class="form">
+			<h4>Properties</h4>
+			<div>
+			<label>File name: <input type="text" id="filename" value="file"/></label>
+			<!-- <label>Width: <input type="text" id="width" value="600"/></label>
+			<label>Height: <input type="text" id="height" value="400"/></label>-->
+			</div>
+			<br>
+			<input type="button" value="save settings" onclick="saveSettings()"/>
+			<input type="button" value="cancel" onclick="document.getElementById('propertiesForm').style.display = 'none'"/>
+		</div>
+		
+		<div id="editEntites" class="form">
+			<h4>Edit entities</h4>
+			<table id="entityPanel" style="margin:auto">
+			</table>
+			<br>
+			<input type="button" value="submit" onclick="updateEntries()"/>
+			<input type="button" value="cancel" onclick="document.getElementById('editEntites').style.display = 'none'"/>
+		</div>
+		
+		<div id="openFileForm" class="form">
+			<h4>Open File</h4>
+			<div>
+			<label>File: <input type="file" id="file" accept=".svg"/></label>
+			<!-- <label>Width: <input type="text" id="width" value="600"/></label>
+			<label>Height: <input type="text" id="height" value="400"/></label>-->
+			</div>
+			<br>
+			<input type="button" value="open" onclick="openUploadedFile()"/>
+			<input type="button" value="cancel" onclick="document.getElementById('openFileForm').style.display = 'none'"/>
+		</div>
+		
+		<div id="canvasContainer">
+			
+		</div>
+		
+		<script>
+		
+			var filename = "file";
+		
+			var lineWidth = 10;
+			
+			var entities = [];
+			var relations = [];
+			
+			var entity = null;
+			var relation = null;
+			
+			var creatingEntity = false;
+			var creatingRelation = false;
+			
+			var entityBuffer = { x: 0, y: 0, name: " "};
+			var relationBuffer = {c1: Cardinality(), c2: Cardinality(), c1set: false};
+			
+			var CANVAS_WIDTH = 600;
+			var CANVAS_HEIGHT = 400;
+			
+			var canvasElement = document.createElement("canvas");
+			canvasElement.id = "canvas";
+			resizeCanvas();
+			
+			function exportSvg(){
+				var xmlDoc = document.implementation.createDocument(null, "svg");
+				var svg = xmlDoc.getElementsByTagName("svg")[0];
+				svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+				svg.setAttribute("version", "1.1");
+				svg.setAttribute("width", CANVAS_WIDTH + "");
+				svg.setAttribute("height", CANVAS_HEIGHT + "");
+				svg.setAttribute("class", "erdiagram");
+				
+				relations.forEach(
+					function(r){
+						var relation = xmlDoc.createElement("g");
+						relation.setAttribute("class", "relation");
+						svg.appendChild(relation);
+						var line = xmlDoc.createElement("line");
+						line.setAttribute("x1", r.c1.x);
+						line.setAttribute("y1", r.c1.y);
+						line.setAttribute("x2", r.c2.x);
+						line.setAttribute("y2", r.c2.y);
+						line.setAttribute("stroke-width", "2");
+						line.setAttribute("stroke", "black");
+						relation.appendChild(line);
+						cardinalityToSvg(r.c1, relation, xmlDoc);
+						cardinalityToSvg(r.c2, relation, xmlDoc);
+					}
+				);
+				
+				entities.forEach(
+					function(e){
+						var entity = xmlDoc.createElement("g");
+						entity.setAttribute("id", e.name);
+						entity.setAttribute("class", "entity");
+						svg.appendChild(entity);
+						
+						var rect = (xmlDoc.createElement("rect"));
+						rect.setAttribute("stroke-width", "10px");
+						rect.setAttribute("stroke", "#000000");
+						rect.setAttribute("fill", "#FFFFFF");
+						rect.setAttribute("width", e.width);
+						rect.setAttribute("height", e.height);
+						rect.setAttribute("y", e.y);
+						rect.setAttribute("x", e.x);
+						entity.appendChild(rect);
+						
+						var text = (xmlDoc.createElement("text"));
+						text.innerHTML = e.name;
+						text.setAttribute("x", (e.x + e.width/2) + "px");
+						text.setAttribute("y", (e.y + e.height/2) + "px");
+						text.setAttribute("alignment-baseline", "middle");
+						text.setAttribute("text-anchor", "middle");
+						entity.appendChild(text);
+					}
+				);
+				
+				var xmlString = (new XMLSerializer()).serializeToString(xmlDoc);
+
+				download(xmlString, filename + '-' + Date() + '.svg', 'image/svg+xml');
+			}
+			
+			function cardinalityToSvg(c, parent, xmlDoc){
+				var group = xmlDoc.createElement("g");
+				group.setAttribute("class", "cardinality");
+				group.setAttribute("type", c.type);
+				group.setAttribute("dir", c.dir);
+				group.setAttribute("parent", c.parent);
+				parent.appendChild(group);
+				var cardinality = null;
+				//console.log(c);
+				if (c.type == "one"){
+					if (c.dir == "up"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 20);
+						cardinality.setAttribute("y1", c.y - 15);
+						cardinality.setAttribute("x2", c.x + 20);
+						cardinality.setAttribute("y2", c.y - 15);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+					} else if (c.dir == "down"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 20);
+						cardinality.setAttribute("y1", c.y + 15);
+						cardinality.setAttribute("x2", c.x + 20);
+						cardinality.setAttribute("y2", c.y + 15);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+					} else if (c.dir == "left"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 15);
+						cardinality.setAttribute("y1", c.y - 20);
+						cardinality.setAttribute("x2", c.x - 15);
+						cardinality.setAttribute("y2", c.y + 20);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+					} else if (c.dir == "right"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x + 15);
+						cardinality.setAttribute("y1", c.y - 20);
+						cardinality.setAttribute("x2", c.x + 15);
+						cardinality.setAttribute("y2", c.y + 20);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+					}
+				} else if (c.type == "many"){
+					if (c.dir == "up"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 20);
+						cardinality.setAttribute("y1", c.y);
+						cardinality.setAttribute("x2", c.x);
+						cardinality.setAttribute("y2", c.y - 15);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x);
+						cardinality.setAttribute("y1", c.y - 15);
+						cardinality.setAttribute("x2", c.x + 20);
+						cardinality.setAttribute("y2", c.y);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+					} else if (c.dir == "down"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 20);
+						cardinality.setAttribute("y1", c.y);
+						cardinality.setAttribute("x2", c.x);
+						cardinality.setAttribute("y2", c.y + 15);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x);
+						cardinality.setAttribute("y1", c.y + 15);
+						cardinality.setAttribute("x2", c.x + 20);
+						cardinality.setAttribute("y2", c.y);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+					} else if (c.dir == "left"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x);
+						cardinality.setAttribute("y1", c.y - 20);
+						cardinality.setAttribute("x2", c.x - 15);
+						cardinality.setAttribute("y2", c.y);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 15);
+						cardinality.setAttribute("y1", c.y);
+						cardinality.setAttribute("x2", c.x);
+						cardinality.setAttribute("y2", c.y + 20);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+					} else if (c.dir == "right"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x);
+						cardinality.setAttribute("y1", c.y - 20);
+						cardinality.setAttribute("x2", c.x + 15);
+						cardinality.setAttribute("y2", c.y);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x + 15);
+						cardinality.setAttribute("y1", c.y);
+						cardinality.setAttribute("x2", c.x);
+						cardinality.setAttribute("y2", c.y + 20);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+					}
+				} else if (c.type == "onlyone"){
+					if (c.dir == "up"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 20);
+						cardinality.setAttribute("y1", c.y - 15);
+						cardinality.setAttribute("x2", c.x + 20);
+						cardinality.setAttribute("y2", c.y - 15);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 20);
+						cardinality.setAttribute("y1", c.y - 30);
+						cardinality.setAttribute("x2", c.x + 20);
+						cardinality.setAttribute("y2", c.y - 30);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+					} else if (c.dir == "down"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 20);
+						cardinality.setAttribute("y1", c.y + 15);
+						cardinality.setAttribute("x2", c.x + 20);
+						cardinality.setAttribute("y2", c.y + 15);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 20);
+						cardinality.setAttribute("y1", c.y + 30);
+						cardinality.setAttribute("x2", c.x + 20);
+						cardinality.setAttribute("y2", c.y + 30);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+					} else if (c.dir == "left"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 15);
+						cardinality.setAttribute("y1", c.y - 20);
+						cardinality.setAttribute("x2", c.x - 15);
+						cardinality.setAttribute("y2", c.y + 20);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 30);
+						cardinality.setAttribute("y1", c.y - 20);
+						cardinality.setAttribute("x2", c.x - 30);
+						cardinality.setAttribute("y2", c.y + 20);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+					} else if (c.dir == "right"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x + 15);
+						cardinality.setAttribute("y1", c.y - 20);
+						cardinality.setAttribute("x2", c.x + 15);
+						cardinality.setAttribute("y2", c.y + 20);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x + 30);
+						cardinality.setAttribute("y1", c.y - 20);
+						cardinality.setAttribute("x2", c.x + 30);
+						cardinality.setAttribute("y2", c.y + 20);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+					}
+				} else if (c.type == "zeroormany"){
+					if (c.dir == "up"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 20);
+						cardinality.setAttribute("y1", c.y);
+						cardinality.setAttribute("x2", c.x);
+						cardinality.setAttribute("y2", c.y - 15);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x);
+						cardinality.setAttribute("y1", c.y - 15);
+						cardinality.setAttribute("x2", c.x + 20);
+						cardinality.setAttribute("y2", c.y);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("circle");
+						cardinality.setAttribute("cx", c.x);
+						cardinality.setAttribute("cy", c.y - 25);
+						cardinality.setAttribute("r", "10");
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						cardinality.setAttribute("fill", "white");
+					} else if (c.dir == "down"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 20);
+						cardinality.setAttribute("y1", c.y);
+						cardinality.setAttribute("x2", c.x);
+						cardinality.setAttribute("y2", c.y + 15);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x);
+						cardinality.setAttribute("y1", c.y + 15);
+						cardinality.setAttribute("x2", c.x + 20);
+						cardinality.setAttribute("y2", c.y);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("circle");
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						cardinality.setAttribute("fill", "white");
+						cardinality.setAttribute("cx", c.x);
+						cardinality.setAttribute("cy", c.y + 25);
+						cardinality.setAttribute("r", "10");
+					} else if (c.dir == "left"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x);
+						cardinality.setAttribute("y1", c.y - 20);
+						cardinality.setAttribute("x2", c.x - 15);
+						cardinality.setAttribute("y2", c.y);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 15);
+						cardinality.setAttribute("y1", c.y);
+						cardinality.setAttribute("x2", c.x);
+						cardinality.setAttribute("y2", c.y + 20);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("circle");
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						cardinality.setAttribute("fill", "white");
+						cardinality.setAttribute("cx", c.x - 25);
+						cardinality.setAttribute("cy", c.y);
+						cardinality.setAttribute("r", "10");
+					} else if (c.dir == "right"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x);
+						cardinality.setAttribute("y1", c.y - 20);
+						cardinality.setAttribute("x2", c.x + 15);
+						cardinality.setAttribute("y2", c.y);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x + 15);
+						cardinality.setAttribute("y1", c.y);
+						cardinality.setAttribute("x2", c.x);
+						cardinality.setAttribute("y2", c.y + 20);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("circle");
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						cardinality.setAttribute("fill", "white");
+						cardinality.setAttribute("cx", c.x + 25);
+						cardinality.setAttribute("cy", c.y);
+						cardinality.setAttribute("r", "10");
+					}
+				} else if (c.type == "zerorone"){
+					if (c.dir == "up"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 20);
+						cardinality.setAttribute("y1", c.y - 15);
+						cardinality.setAttribute("x2", c.x + 20);
+						cardinality.setAttribute("y2", c.y - 15);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("circle");
+						cardinality.setAttribute("cx", c.x);
+						cardinality.setAttribute("cy", c.y - 30);
+						cardinality.setAttribute("r", "10");
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						cardinality.setAttribute("fill", "white");
+					} else if (c.dir == "down"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 20);
+						cardinality.setAttribute("y1", c.y + 15);
+						cardinality.setAttribute("x2", c.x + 20);
+						cardinality.setAttribute("y2", c.y + 15);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("circle");
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						cardinality.setAttribute("fill", "white");
+						cardinality.setAttribute("cx", c.x);
+						cardinality.setAttribute("cy", c.y + 30);
+						cardinality.setAttribute("r", "10");
+					} else if (c.dir == "left"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 15);
+						cardinality.setAttribute("y1", c.y - 20);
+						cardinality.setAttribute("x2", c.x - 15);
+						cardinality.setAttribute("y2", c.y + 20);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("circle");
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						cardinality.setAttribute("fill", "white");
+						cardinality.setAttribute("cx", c.x - 30);
+						cardinality.setAttribute("cy", c.y);
+						cardinality.setAttribute("r", "10");
+					} else if (c.dir == "right"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x + 15);
+						cardinality.setAttribute("y1", c.y - 20);
+						cardinality.setAttribute("x2", c.x + 15);
+						cardinality.setAttribute("y2", c.y + 20);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("circle");
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						cardinality.setAttribute("fill", "white");
+						cardinality.setAttribute("cx", c.x + 30);
+						cardinality.setAttribute("cy", c.y);
+						cardinality.setAttribute("r", "10");
+					}
+				} else if (c.type == "oneormany"){
+					if (c.dir == "up"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 20);
+						cardinality.setAttribute("y1", c.y);
+						cardinality.setAttribute("x2", c.x);
+						cardinality.setAttribute("y2", c.y - 15);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x);
+						cardinality.setAttribute("y1", c.y - 15);
+						cardinality.setAttribute("x2", c.x + 20);
+						cardinality.setAttribute("y2", c.y);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 20);
+						cardinality.setAttribute("y1", c.y - 15);
+						cardinality.setAttribute("x2", c.x + 20);
+						cardinality.setAttribute("y2", c.y - 15);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+					} else if (c.dir == "down"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 20);
+						cardinality.setAttribute("y1", c.y);
+						cardinality.setAttribute("x2", c.x);
+						cardinality.setAttribute("y2", c.y + 15);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x);
+						cardinality.setAttribute("y1", c.y + 15);
+						cardinality.setAttribute("x2", c.x + 20);
+						cardinality.setAttribute("y2", c.y);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 20);
+						cardinality.setAttribute("y1", c.y + 15);
+						cardinality.setAttribute("x2", c.x + 20);
+						cardinality.setAttribute("y2", c.y + 15);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+					} else if (c.dir == "left"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x);
+						cardinality.setAttribute("y1", c.y - 20);
+						cardinality.setAttribute("x2", c.x - 15);
+						cardinality.setAttribute("y2", c.y);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 15);
+						cardinality.setAttribute("y1", c.y);
+						cardinality.setAttribute("x2", c.x);
+						cardinality.setAttribute("y2", c.y + 20);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x - 15);
+						cardinality.setAttribute("y1", c.y - 20);
+						cardinality.setAttribute("x2", c.x - 15);
+						cardinality.setAttribute("y2", c.y + 20);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+					} else if (c.dir == "right"){
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x);
+						cardinality.setAttribute("y1", c.y - 20);
+						cardinality.setAttribute("x2", c.x + 15);
+						cardinality.setAttribute("y2", c.y);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x + 15);
+						cardinality.setAttribute("y1", c.y);
+						cardinality.setAttribute("x2", c.x);
+						cardinality.setAttribute("y2", c.y + 20);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+						group.appendChild(cardinality);
+						cardinality = xmlDoc.createElement("line");
+						cardinality.setAttribute("x1", c.x + 15);
+						cardinality.setAttribute("y1", c.y - 20);
+						cardinality.setAttribute("x2", c.x + 15);
+						cardinality.setAttribute("y2", c.y + 20);
+						cardinality.setAttribute("stroke-width", "2");
+						cardinality.setAttribute("stroke", "black");
+					}
+				}
+				group.appendChild(cardinality);
+			}
+			
+			// Grabbed from stackoverflow
+			function download(data, filename, type) {
+				var a = document.createElement("a");
+				var file = new Blob([data], {type: type});
+				//console.log(a);
+				if (window.navigator.msSaveOrOpenBlob) // IE10+
+					window.navigator.msSaveOrOpenBlob(file, filename);
+				else { // Others
+					var url = URL.createObjectURL(file);
+					//console.log(url);
+					a.href = url;
+					a.download = filename;
+					//console.log(a);
+					document.body.appendChild(a);
+					a.click();
+					setTimeout(function() {
+						document.body.removeChild(a);
+						window.URL.revokeObjectURL(url);  
+					}, 0); 
+				}
+			}
+			
+			function resizeCanvas(){
+				canvasElement.width = CANVAS_WIDTH;
+				canvasElement.height = CANVAS_HEIGHT;
+			}
+			
+			function addEntityToPanel(entity){
+				var editEntitiesPnl = document.getElementById("entityPanel");
+					var row = editEntitiesPnl.insertRow(0);
+						var cell1 = row.insertCell(0);
+						var cell2 = row.insertCell(1);
+						cell1.innerHTML = "<input id='" + entity.name + "' value='"+ entity.name + "'>";
+						cell2.innerHTML = "<input type='button' onclick=\"deleteEntity('" + entity.name +"')\" class='" + entity.name +"' value='delete'>";
+			}
+			
+			canvasElement.onmousedown = function(){
+				var canvasBounds = canvasElement.getBoundingClientRect();
+				var x = event.clientX - canvasBounds.left;
+				var y = event.clientY - canvasBounds.top;
+				if (creatingEntity == true)
+				{
+					creatingEntity = false;
+					console.log(entityBuffer);
+					addEntityToPanel(entityBuffer);
+					entities.push(Entity({x: entityBuffer.x, y: entityBuffer.y, name: entityBuffer.name}));
+					console.log(entities);
+				}
+				if (creatingRelation == true)
+				{
+					entities.forEach(
+						function(entity){
+							if (x >= entity.x && x <= entity.x + 110 && y >= entity.y && y <= entity.y + entity.height)
+							{
+								if (relationBuffer.c1set != true)
+								{
+									relationBuffer.c1set = true;
+									relationBuffer.c1.parent = entity.name;
+									//console.log(relationBuffer);
+								}
+								else
+								{
+									relationBuffer.c2.parent = entity.name;
+									relations.push(Relation({c1: relationBuffer.c1, c2: relationBuffer.c2}));
+									relationBuffer = {c1: Cardinality(), c2: Cardinality(), c1set: false};
+									console.log(relations);
+									creatingRelation = false;
+								}
+							}
+							
+						}
+					);
+				}
+			};
+			
+			canvasElement.onmousemove = function(){
+				var canvasBounds = canvasElement.getBoundingClientRect();
+				var x = event.clientX - canvasBounds.left;
+				var y = event.clientY - canvasBounds.top;
+				if (creatingEntity == true)
+				{
+					entityBuffer.x = x - 50;
+					entityBuffer.y = y - 50;
+				}
+				if (creatingRelation == true)
+				{
+					entities.forEach(
+						function(entity){
+							if (y >= entity.y && y <= entity.y + entity.height)
+							{
+								if ((y <= entity.y + 25) && (x >= entity.x && x <= entity.x + entity.width))
+								{
+									if (relationBuffer.c1set != true)
+									{
+										relationBuffer.c1.x = x;
+										relationBuffer.c1.y = entity.y;
+										relationBuffer.c1.dir = "up";
+										//console.log(relationBuffer);
+									}
+									else
+									{
+										relationBuffer.c2.x = x;
+										relationBuffer.c2.y = entity.y;
+										relationBuffer.c2.dir = "up";
+										//console.log(relationBuffer);
+									}
+								}
+								else if ((y >= entity.y + entity.height - 25) && (x >= entity.x && x <= entity.x + entity.width))
+								{
+									if (relationBuffer.c1set != true)
+									{
+										relationBuffer.c1.x = x;
+										relationBuffer.c1.y = entity.y + entity.height;
+										relationBuffer.c1.dir = "down";
+										//console.log(relationBuffer);
+									}
+									else
+									{
+										relationBuffer.c2.x = x;
+										relationBuffer.c2.y = entity.y + entity.height;
+										relationBuffer.c2.dir = "down";
+										//console.log(relationBuffer);
+									}
+								}
+								else if (x >= entity.x && x <= entity.x + entity.width/2 + 5)
+								{
+									if (relationBuffer.c1set != true)
+									{
+										relationBuffer.c1.x = entity.x;
+										relationBuffer.c1.y = y;
+										relationBuffer.c1.dir = "left";
+										//console.log(relationBuffer);
+									}
+									else
+									{
+										relationBuffer.c2.x = entity.x;
+										relationBuffer.c2.y = y;
+										relationBuffer.c2.dir = "left";
+										//console.log(relationBuffer);
+									}
+								}
+								else if (x >= entity.x + entity.width/2 + 5 && x <= entity.x + entity.width + 10)
+								{
+									if (relationBuffer.c1set != true)
+									{
+										relationBuffer.c1.x = entity.x + entity.width;
+										relationBuffer.c1.y = y;
+										relationBuffer.c1.dir = "right";
+										//console.log(relationBuffer);
+									}
+									else
+									{
+										relationBuffer.c2.x = entity.x + entity.width;
+										relationBuffer.c2.y = y;
+										relationBuffer.c2.dir = "right";
+										//console.log(relationBuffer);
+									}
+								}
+							}
+						}
+					);
+				}
+			}
+			
+			var canvas = canvasElement.getContext("2d");
+			canvas.textAlign="center";
+			canvas.lineWidth = lineWidth;
+			
+			document.getElementById("canvasContainer").appendChild(canvasElement);
+			
+			var FPS = 60;
+			setInterval(function() {
+			  draw();
+			}, 1000/FPS);
+			
+			function createEntity(){
+				display("entityForm");
+			}
+			
+			function createRelation(){
+				display("relationForm");
+			}
+			
+			function display(id){
+				document.getElementById(id).style.display = "inherit";
+			}
+			
+			function submitEntity(){
+				var nameInput = document.getElementById("entityName").value;
+				if (nameInput == null || nameInput == "")
+				{
+					alert("Entity must have a name");
+					return;
+				}
+				creatingEntity = true;
+				entityBuffer.name = nameInput;
+				console.log(entityBuffer);
+				document.getElementById("entityName").value = "";
+				document.getElementById("entityForm").style.display = "none";
+			}
+			
+			function submitRelation(){
+				creatingRelation = true;
+				relationBuffer.c1.type = document.getElementById("point1").value;
+				relationBuffer.c2.type = document.getElementById("point2").value;
+				document.getElementById("relationForm").style.display = "none";
+			}
+			
+			function editEntities(){
+				display("editEntites");
+				//this.remove();
+			}
+			
+			function deleteEntity(entityName){
+				var input = document.getElementById(entityName);
+				//for (var i = 0; i < inputs.length; i++){
+					//if (inputs[i].id == entityName){
+						for (var j = 0; j < entities.length; j++){
+							if (input.id == entities[j].name)
+							{
+								entities.splice(j, 1);
+								for (var i = 0; i < relations.length; i++)
+								{
+									if (relations[i].c1.parent == input.id || relations[i].c2.parent == input.id)
+									{
+										relations.splice(i, 1);
+									}
+								}
+							}
+						}
+						input.remove();
+						var index = 0;
+						var tags = document.getElementsByClassName(entityName);
+						while (tags.length != 0){
+							tags[0].remove();
+						}
+					//}
+				//}
+			}
+			
+			function updateEntries(){
+				document.getElementById('editEntites').style.display = 'none';
+				var inputs = document.getElementsByTagName("input");
+				for (var i = 0; i < inputs.length; i++){
+						for (var j = 0; j < entities.length; j++){
+							if (inputs[i].id == entities[j].name)
+							{
+								if (inputs[i].value == null || inputs[i].value == "")
+								{
+									alert("Entity must have a name");
+									return;
+								}
+								console.log(inputs[i].id);
+								entities[j].name = inputs[i].value;
+								var button = document.getElementsByClassName(inputs[i].id)[0];
+								inputs[i].id = entities[j].name;
+								button.setAttribute("class", inputs[i].id);
+								button.setAttribute("onclick", "deleteEntity('"+ inputs[i].id + "')");
+							}
+						}
+				}
+			}
+						
+			function saveSettings(){
+				filename = document.getElementById("filename").value;
+				document.getElementById('propertiesForm').style.display = 'none';
+			}
+			
+			function openUploadedFile(){
+				var xml;
+				var fileReader = new FileReader();
+				fileReader.readAsDataURL(document.getElementById("file").files[0]);
+				fileReader.addEventListener("load", function () {
+					console.log(fileReader.result);
+					var xhr = new XMLHttpRequest();
+					xhr.onload = function() {
+						xml = xhr.responseXML;
+						newFile();
+						console.log(xml);
+						var loadedRelations = xml.getElementsByClassName("relation");
+						for (var i = 0; i < loadedRelations.length; i++)
+						{
+							var r = loadedRelations[i].childNodes[0];
+							var relation = Relation();
+							relation.c1.x = parseInt(r.getAttribute("x1"));
+							relation.c1.y = parseInt(r.getAttribute("y1"));
+							relation.c2.x = parseInt(r.getAttribute("x2"));
+							relation.c2.y = parseInt(r.getAttribute("y2"));
+							var cardinalities = xml.getElementsByClassName("cardinality");
+							relation.c1.type = cardinalities[0].getAttribute("type");
+							relation.c1.dir = cardinalities[0].getAttribute("dir");
+							relation.c1.parent = cardinalities[0].getAttribute("parent");
+							relation.c2.type = cardinalities[1].getAttribute("type");
+							relation.c2.dir = cardinalities[1].getAttribute("dir");
+							relation.c2.parent = cardinalities[1].getAttribute("parent");
+							relations.push(relation);
+						}
+						var loadedEntities = xml.getElementsByClassName("entity");
+						for (var i = 0; i < loadedEntities.length; i++)
+						{
+							var e = Entity();
+							e.name = loadedEntities[i].id;
+							e.x = parseInt(loadedEntities[i].childNodes[0].getAttribute("x"));
+							e.y = parseInt(loadedEntities[i].childNodes[0].getAttribute("y"));
+							entities.push(e);
+							addEntityToPanel(e);
+						}
+					}
+					xhr.onerror = function() {
+					  console.log("Error while getting XML.");
+					}
+					xhr.open("GET", fileReader.result);
+					xhr.responseType = "document";
+					xhr.send();
+				  }, false);
+				
+				document.getElementById('openFileForm').style.display = 'none';
+			}
+			
+			function newFile(){
+				relations = [];
+				entities = [];
+			}
+			
+			function draw() {
+				canvas.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+				entities.forEach(
+					function(entity){
+						entity.display();
+					}
+				);
+				relations.forEach(
+					function(relation){
+						relation.display();
+					}
+				);
+				if (creatingEntity == true)
+				{
+					displayEntityBuffer();
+				}
+				if (creatingRelation == true)
+				{
+					if (relationBuffer.c1set == false)
+					{
+						canvas.fillStyle = "black";
+						canvas.fillRect(relationBuffer.c1.x - 10, relationBuffer.c1.y - 10, 20, 20);
+					}
+					else
+					{
+						canvas.fillStyle = "black";
+						canvas.fillRect(relationBuffer.c1.x - 10, relationBuffer.c1.y - 10, 20, 20);
+						canvas.fillRect(relationBuffer.c2.x - 10, relationBuffer.c2.y - 10, 20, 20);
+					}
+				}
+			}
+			
+			function displayEntityBuffer(){
+				canvas.strokeStyle = "blue";
+				canvas.strokeRect(entityBuffer.x, entityBuffer.y, 100, 100);
+				canvas.fillText(entityBuffer.name, entityBuffer.x + 50, entityBuffer.y + 50);
+			}
+			
+			function Entity(entity) {
+				entity = entity || {x: 0, y: 0, name: ""};
+				entity.width = 100;
+				entity.height = 100;
+				entity.display = function(){
+					canvas.strokeStyle = "black";
+					canvas.strokeRect(entity.x, entity.y, entity.width, entity.height);
+					canvas.fillText(entity.name, entity.x+entity.width/2, entity.y+entity.height/2);
+				};
+				return entity;
+			}
+			
+			function Relation(relation) {
+				relation = relation || {c1: Cardinality(), c2: Cardinality()};
+				relation.display = function(){
+					canvas.lineWidth = 2;
+					canvas.beginPath();
+					canvas.moveTo(relation.c1.x,relation.c1.y);
+					canvas.lineTo(relation.c2.x,relation.c2.y);
+					canvas.stroke();
+					drawCardinalities(relation);
+					canvas.lineWidth = 10;
+				};
+				return relation;
+			}
+			
+			function Cardinality(cardinality){
+				cardinality = cardinality || {type: "", x: -10, y: -10, dir: "", parent: ""};
+				return cardinality;
+			}
+			
+			function drawCardinalities(relation){
+				drawCardinality(relation.c1);
+				drawCardinality(relation.c2);
+			}
+			
+			function drawCardinality(cardinality){
+				var type = cardinality.type;
+				canvas.beginPath();
+				if (type == "one"){
+					if (cardinality.dir == "right"){
+						canvas.moveTo(cardinality.x + 15,cardinality.y - 20);
+						canvas.lineTo(cardinality.x + 15,cardinality.y + 20);
+					}
+					else if (cardinality.dir == "left"){
+						canvas.moveTo(cardinality.x - 15,cardinality.y - 20);
+						canvas.lineTo(cardinality.x - 15,cardinality.y + 20);
+					}
+					else if (cardinality.dir == "up"){
+						canvas.moveTo(cardinality.x - 20,cardinality.y - 15);
+						canvas.lineTo(cardinality.x + 20,cardinality.y - 15);
+					}
+					else if (cardinality.dir == "down"){
+						canvas.moveTo(cardinality.x - 20,cardinality.y + 15);
+						canvas.lineTo(cardinality.x + 20,cardinality.y + 15);
+					}
+				}
+				else if (type == "many"){
+					if (cardinality.dir == "right"){
+						canvas.moveTo(cardinality.x,cardinality.y - 20);
+						canvas.lineTo(cardinality.x + 15,cardinality.y);
+						canvas.moveTo(cardinality.x + 15,cardinality.y);
+						canvas.lineTo(cardinality.x,cardinality.y + 20);
+					}
+					else if (cardinality.dir == "left"){
+						canvas.moveTo(cardinality.x,cardinality.y - 20);
+						canvas.lineTo(cardinality.x - 15,cardinality.y);
+						canvas.moveTo(cardinality.x - 15,cardinality.y);
+						canvas.lineTo(cardinality.x,cardinality.y + 20);
+					}
+					else if (cardinality.dir == "up"){
+						canvas.moveTo(cardinality.x - 20,cardinality.y);
+						canvas.lineTo(cardinality.x,cardinality.y - 15);
+						canvas.moveTo(cardinality.x,cardinality.y - 15);
+						canvas.lineTo(cardinality.x + 20,cardinality.y);
+					}
+					else if (cardinality.dir == "down"){
+						canvas.moveTo(cardinality.x - 20,cardinality.y);
+						canvas.lineTo(cardinality.x,cardinality.y + 15);
+						canvas.moveTo(cardinality.x,cardinality.y + 15);
+						canvas.lineTo(cardinality.x + 20,cardinality.y);
+					}
+				}
+				else if (type == "onlyone"){
+					if (cardinality.dir == "right"){
+						canvas.moveTo(cardinality.x + 15,cardinality.y - 20);
+						canvas.lineTo(cardinality.x + 15,cardinality.y + 20);
+						canvas.moveTo(cardinality.x + 30,cardinality.y - 20);
+						canvas.lineTo(cardinality.x + 30,cardinality.y + 20);
+					}
+					else if (cardinality.dir == "left"){
+						canvas.moveTo(cardinality.x - 15,cardinality.y - 20);
+						canvas.lineTo(cardinality.x - 15,cardinality.y + 20);
+						canvas.moveTo(cardinality.x - 30,cardinality.y - 20);
+						canvas.lineTo(cardinality.x - 30,cardinality.y + 20);
+					}
+					else if (cardinality.dir == "up"){
+						canvas.moveTo(cardinality.x - 20,cardinality.y - 15);
+						canvas.lineTo(cardinality.x + 20,cardinality.y - 15);
+						canvas.moveTo(cardinality.x - 20,cardinality.y - 30);
+						canvas.lineTo(cardinality.x + 20,cardinality.y - 30);
+					}
+					else if (cardinality.dir == "down"){
+						canvas.moveTo(cardinality.x - 20,cardinality.y + 15);
+						canvas.lineTo(cardinality.x + 20,cardinality.y + 15);
+						canvas.moveTo(cardinality.x - 20,cardinality.y + 30);
+						canvas.lineTo(cardinality.x + 20,cardinality.y + 30);
+					}
+				}
+				else if (type == "zeroormany"){
+					if (cardinality.dir == "right"){
+						canvas.moveTo(cardinality.x,cardinality.y - 20);
+						canvas.lineTo(cardinality.x + 15,cardinality.y);
+						canvas.moveTo(cardinality.x + 15,cardinality.y);
+						canvas.lineTo(cardinality.x,cardinality.y + 20);
+						canvas.stroke();
+						canvas.beginPath();
+						canvas.arc(cardinality.x + 25, cardinality.y, 10, 0, 2 * Math.PI);
+						canvas.fillStyle = "white";
+						canvas.fill();
+					}
+					else if (cardinality.dir == "left"){
+						canvas.moveTo(cardinality.x,cardinality.y - 20);
+						canvas.lineTo(cardinality.x - 15,cardinality.y);
+						canvas.moveTo(cardinality.x - 15,cardinality.y);
+						canvas.lineTo(cardinality.x,cardinality.y + 20);
+						canvas.stroke();
+						canvas.beginPath();
+						canvas.arc(cardinality.x - 25, cardinality.y, 10, 0, 2 * Math.PI);
+						canvas.fillStyle = "white";
+						canvas.fill();
+					}
+					else if (cardinality.dir == "up"){
+						canvas.moveTo(cardinality.x - 20,cardinality.y);
+						canvas.lineTo(cardinality.x,cardinality.y - 15);
+						canvas.moveTo(cardinality.x,cardinality.y - 15);
+						canvas.lineTo(cardinality.x + 20,cardinality.y);
+						canvas.stroke();
+						canvas.beginPath();
+						canvas.arc(cardinality.x, cardinality.y - 25, 10, 0, 2 * Math.PI);
+						canvas.fillStyle = "white";
+						canvas.fill();
+					}
+					else if (cardinality.dir == "down"){
+						canvas.moveTo(cardinality.x - 20,cardinality.y);
+						canvas.lineTo(cardinality.x,cardinality.y + 15);
+						canvas.moveTo(cardinality.x,cardinality.y + 15);
+						canvas.lineTo(cardinality.x + 20,cardinality.y);
+						canvas.stroke();
+						canvas.beginPath();
+						canvas.arc(cardinality.x, cardinality.y + 25, 10, 0, 2 * Math.PI);
+						canvas.fillStyle = "white";
+						canvas.fill();
+					}
+					canvas.fillStyle="black";
+				}
+				else if (type == "zerorone"){
+					if (cardinality.dir == "right"){
+						canvas.moveTo(cardinality.x + 15,cardinality.y - 20);
+						canvas.lineTo(cardinality.x + 15,cardinality.y + 20);
+						canvas.stroke();
+						canvas.beginPath();
+						canvas.arc(cardinality.x + 30, cardinality.y, 10, 0, 2 * Math.PI);
+						canvas.fillStyle = "white";
+						canvas.fill();
+					}
+					else if (cardinality.dir == "left"){
+						canvas.moveTo(cardinality.x - 15,cardinality.y - 20);
+						canvas.lineTo(cardinality.x - 15,cardinality.y + 20);
+						canvas.stroke();
+						canvas.beginPath();
+						canvas.arc(cardinality.x - 30, cardinality.y, 10, 0, 2 * Math.PI);
+						canvas.fillStyle = "white";
+						canvas.fill();
+					}
+					else if (cardinality.dir == "up"){
+						canvas.moveTo(cardinality.x - 20,cardinality.y - 15);
+						canvas.lineTo(cardinality.x + 20,cardinality.y - 15);
+						canvas.stroke();
+						canvas.beginPath();
+						canvas.arc(cardinality.x, cardinality.y - 30, 10, 0, 2 * Math.PI);
+						canvas.fillStyle = "white";
+						canvas.fill();
+					}
+					else if (cardinality.dir == "down"){
+						canvas.moveTo(cardinality.x - 20,cardinality.y + 15);
+						canvas.lineTo(cardinality.x + 20,cardinality.y + 15);
+						canvas.stroke();
+						canvas.beginPath();
+						canvas.arc(cardinality.x, cardinality.y + 30, 10, 0, 2 * Math.PI);
+						canvas.fillStyle = "white";
+						canvas.fill();
+					}
+					canvas.fillStyle="black";
+				}
+				else if (type == "oneormany"){
+					if (cardinality.dir == "right"){
+						canvas.moveTo(cardinality.x,cardinality.y - 20);
+						canvas.lineTo(cardinality.x + 15,cardinality.y);
+						canvas.moveTo(cardinality.x + 15,cardinality.y);
+						canvas.lineTo(cardinality.x,cardinality.y + 20);
+						canvas.moveTo(cardinality.x + 15,cardinality.y - 20);
+						canvas.lineTo(cardinality.x + 15,cardinality.y + 20);
+					}
+					else if (cardinality.dir == "left"){
+						canvas.moveTo(cardinality.x,cardinality.y - 20);
+						canvas.lineTo(cardinality.x - 15,cardinality.y);
+						canvas.moveTo(cardinality.x - 15,cardinality.y);
+						canvas.lineTo(cardinality.x,cardinality.y + 20);
+						canvas.moveTo(cardinality.x - 15,cardinality.y - 20);
+						canvas.lineTo(cardinality.x - 15,cardinality.y + 20);
+					}
+					else if (cardinality.dir == "up"){
+						canvas.moveTo(cardinality.x - 20,cardinality.y);
+						canvas.lineTo(cardinality.x,cardinality.y - 15);
+						canvas.moveTo(cardinality.x,cardinality.y - 15);
+						canvas.lineTo(cardinality.x + 20,cardinality.y);
+						canvas.moveTo(cardinality.x - 20,cardinality.y - 15);
+						canvas.lineTo(cardinality.x + 20,cardinality.y - 15);
+					}
+					else if (cardinality.dir == "down"){
+						canvas.moveTo(cardinality.x - 20,cardinality.y);
+						canvas.lineTo(cardinality.x,cardinality.y + 15);
+						canvas.moveTo(cardinality.x,cardinality.y + 15);
+						canvas.lineTo(cardinality.x + 20,cardinality.y);
+						canvas.moveTo(cardinality.x - 20,cardinality.y + 15);
+						canvas.lineTo(cardinality.x + 20,cardinality.y + 15);
+					}
+				}
+				canvas.stroke();
+			}
+		</script>
+	</body>
+</html>
