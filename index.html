@@ -75,8 +75,8 @@
 			<h4>Properties</h4>
 			<div>
 			<label>File name: <input type="text" id="filename" value="file"/></label>
-			<!-- <label>Width: <input type="text" id="width" value="600"/></label>
-			<label>Height: <input type="text" id="height" value="400"/></label>-->
+			<label>Width: <input type="text" id="width" value="600"/></label>
+			<label>Height: <input type="text" id="height" value="400"/></label>
 			</div>
 			<br>
 			<input type="button" value="save settings" onclick="saveSettings()"/>
@@ -898,6 +898,19 @@
 						
 			function saveSettings(){
 				filename = document.getElementById("filename").value;
+				var w = parseInt(document.getElementById("width").value);
+				var h = parseInt(document.getElementById("height").value);
+				if (w >= 0 && h >= 0){
+					canvasElement.width = w;
+					canvasElement.height = h;
+					CANVAS_WIDTH = w;
+					CANVAS_HEIGHT = h;
+					document.getElementById("canvasContainer").style.width = w + "px";
+				}
+				else {
+					alert("Input valid width and height");
+					return false;
+				}
 				document.getElementById('propertiesForm').style.display = 'none';
 			}
 			
@@ -955,6 +968,10 @@
 			function newFile(){
 				relations = [];
 				entities = [];
+				document.getElementById("editEntites").innerHTML = '<h4>Edit entities</h4>' + 
+					'<table id="entityPanel" style="margin:auto"></table><br>' + 
+					'<input type="button" value="submit" onclick="updateEntries()"/> ' + 
+					'<input type="button" value="cancel" onclick="document.getElementById(\'editEntites\').style.display = \'none\'"/>';
 			}
 			
 			function draw() {

@@ -70,12 +70,11 @@
 			padding: 10px;
 		}
 		#canvas{
-			margin: auto;
 			border: 1px solid green;
 		}
 		
 		body{
-			position: relative;
+			margin: auto;
 			z-index:8;
 		}
 		
