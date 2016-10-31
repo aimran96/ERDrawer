@@ -924,17 +924,19 @@
 					xhr.onload = function() {
 						xml = xhr.responseXML;
 						newFile();
-						console.log(xml);
+						//console.log(xml);
 						var root = xml.getElementsByTagName("svg")[0];
 						var w = parseInt(root.getAttribute("width"));
 						var h = parseInt(root.getAttribute("height"));
-						console.log(root);
+						//console.log(root);
 						if (w >= 0 && h >= 0){
 							canvasElement.width = w;
 							canvasElement.height = h;
 							CANVAS_WIDTH = w;
 							CANVAS_HEIGHT = h;
 							document.getElementById("canvasContainer").style.width = w + "px";
+							document.getElementById("width").value = w;
+							document.getElementById("height").value = h;
 						}
 						var loadedRelations = xml.getElementsByClassName("relation");
 						for (var i = 0; i < loadedRelations.length; i++)
